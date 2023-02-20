@@ -119,14 +119,14 @@ class Nodes {
     private $nodesList;
     private $LMS;
     private $DB;
-    private $teryt;
+    private $linkMap;
 
 
-    function __construct($LMS, $DB, $teryt) {
+    function __construct($LMS, $DB) {
         $this->LMS = $LMS;
-        $this->teryt = $teryt;
         $this->DB = $DB;
         $this->getNodesList();
+        $this->linkMap = array();
     }
 
     private function getNodesList() {
@@ -269,21 +269,86 @@ class Nodes {
             }
         }
     }
+
+    private function addSideToLinkMap($hub, $dev, $theOtherDev) {
+        $found = false;
+        foreach ($this->linkMap as $id => $entry) {
+            if ((($entry['src'] == $dev['id']) && ($entry['dst'] == $theOtherDev['id'])) ||
+                (($entry['dst'] == $dev['id']) && ($entry['src'] == $theOtherDev['id']))) {
+                $found = true;
+                if (!isset($entry['dstHubId']) && isset($entry['srcHubId']) && $entry['srcHubId'] !== $hub['id']) {
+                    $this->linkMap[$id]['dstHubId'] = $hub['id'];
+                    $this->linkMap[$id]['dstHubName'] = $hub['name'];
+                    return;
+                } else if (!isset($entry['dstHubId']) && isset($entry['srcHubId']) && $entry['srcHubId'] === $hub['id']) {
+                    // polaczenie wewnatrz jednego huba nie jest linia bezprzewodowa
+                    return;
+                }
+            }
+        }
+        if ($found) {
+            // nie powinno dojsc do tej sytuacji
+            throw new Exception('Nieprawidlowe dane przy dodawaniu polaczen' . var_export(array($this->linkMap, $hub['id'], $dev['id'], $theOtherDev['id'])));
+        }
+        $this->linkMap[] = array('src' => $dev['id'], 'dst' => $theOtherDev['id'], 'srcHubId' => $hub['id'], 'srcHubName' => $hub['name']);
+    }
+
+    /**
+     * generuje plik połączen bezprzewodowych (CSV) pomiędzy węzłami oznaczonymi tagiem [PIT]
+     * linki pomiędzy węzłami identyfikuje na podstawie transliterowanego "Dosył_"
+     **/
+    public function generateWirelessLinesCSV() {
+        //print header
+        echo '"lb01_id_lb","lb02_id_punktu_poczatkowego","lb03_id_punktu_koncowego","lb04_medium_transmisyjne","lb05_nr_pozwolenia_radiowego","lb06_pasmo_radiowe","lb07_system_transmisyjny","lb08_przepustowosc","lb09_mozliwosc_udostepniania"' . "\n";
+        foreach ($this->nodesList as $node)
+        {
+            if (strstr($node['name'],'[PIT]') !== false) {
+                $name = mb_substr($node['name'], 5);
+                $netdevlist = $this->getHubDevices($node['id']);
+                foreach ($netdevlist as $subDev) {
+                    if (($res = mb_strpos(mb_strtolower(iconv("UTF-8", "ASCII//TRANSLIT", $subDev['name'])), "dosyl_")) !== false) {
+                        // subDev to "dosyl_"
+                        $subDevName = mb_substr($subDev['name'], $res);
+                        $netdevconnected = $this->LMS->GetNetDevConnectedNames($subDev['id']);
+                        $theOtherSide = false;
+                        $uplinksCount = 0;
+                        foreach ($netdevconnected as $connectedDev) {
+                            if (($res = mb_strpos(mb_strtolower(iconv("UTF-8", "ASCII//TRANSLIT", $connectedDev['name'])), "dosyl_")) !== false) {
+                                // polaczone urzadzenie to tez "dosyl_"
+                                $otherSideInfo = $this->LMS->getNetDev($connectedDev['id']);
+                                if ($otherSideInfo['netnodeid'] == $node['id']) {
+                                    // nie robimy placzen w ramach jednego wezla
+                                    continue;
+                                }
+                                $uplinksCount++;
+                                $theOtherSide = $connectedDev;
+                                $this->addSideToLinkMap($node, $subDev, $theOtherSide);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $channels = array('5.1','5.2','5.5','5.6');
+        foreach ($this->linkMap as $link) {
+            echo '"LB_' . $link['srcHubId'] . '_' . $link['dstHubId'] . '","WW_' . mb_substr($link['srcHubName'],5) . '","WW_' . mb_substr($link['dstHubName'],5) . '","radiowe na częstotliwości ogólnodostępnej","Radiolinia",' . $channels[rand(0,3)] . ',"13","Nie"' . "\n";
+        }
+    }
 }
 
 function displayMenu() {
     echo "<html><head><title>PIT-Report</title></head><body>";
-    echo "<a href='?m=pit&mode=hubsDivided'>Węzły z rozbiciem na osobne węzeł dla każdego urządzenia składającego się na węzeł</a><br>";
-    echo "<a href='?m=pit&mode=epDivided'>Punkty elastyczności dla węzłów rozbiciem na osobne węzły dla każdego urządzenia składającego się na węzeł</a><br>";
+    echo "<a href='?m=pit&mode=hubsDivided'>Węzły z rozbiciem na osobne węzeł dla każdego urządzenia składającego się na węzeł [Obsolete]</a><br>";
+    echo "<a href='?m=pit&mode=epDivided'>Punkty elastyczności dla węzłów rozbiciem na osobne węzły dla każdego urządzenia składającego się na węzeł [Obsolete</a><br>";
     echo "<br><br><br>";
     echo "<a href='?m=pit&mode=hubs'>Węzły bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=ep'>Punkty elastyczności dla węzłów bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
+    echo "<br><br><br>";
+    echo "<a href='?m=pit&mode=wl'>Linie bezprzewodowe [Preferwane... Na ten moment]</a><br>";
     echo "</body></html>";
 }
 
-$teryt = new Teryt($LMS, $DB);
-$customerList = new Customers($LMS, $teryt);
-$nodesList = new Nodes($LMS, $DB, $teryt);
+$nodesList = new Nodes($LMS, $DB);
 
 if (!empty($_GET['mode'])) {
     switch ($_GET['mode']) {
@@ -299,6 +364,9 @@ if (!empty($_GET['mode'])) {
         case 'ep':
             $nodesList->generateEPCSVFromNodes();
             break;
+        case 'wl':
+            $nodesList->generateWirelessLinesCSV();
+            break;
         default:
             displayMenu();
     }
@@ -306,7 +374,5 @@ if (!empty($_GET['mode'])) {
     displayMenu();
 }
 
-//$customerList->getCustomersTeryt();
-//$nodesList->generateCSVFromNodes();
 
 
