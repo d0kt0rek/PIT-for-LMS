@@ -18,6 +18,6 @@ Usage
 At the moment script only generates CVS for:
 - węzły
 - punkty elastyczności
-- Wireless Lines
+- linie bezprzewodowe
 
 as new reports will be added, new assumptions and requirements may follow
