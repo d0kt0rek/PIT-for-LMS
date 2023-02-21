@@ -331,7 +331,7 @@ class Nodes {
         }
         $channels = array('5.1','5.2','5.5','5.6');
         foreach ($this->linkMap as $link) {
-            echo '"LB_' . $link['srcHubId'] . '_' . $link['dstHubId'] . '","WW_' . mb_substr($link['srcHubName'],5) . '","WW_' . mb_substr($link['dstHubName'],5) . '","radiowe na częstotliwości ogólnodostępnej","Radiolinia",' . $channels[rand(0,3)] . ',"13","Nie"' . "\n";
+            echo '"LB_' . $link['srcHubId'] . '_' . $link['dstHubId'] . '","WW_' . mb_substr($link['srcHubName'],5) . '","WW_' . mb_substr($link['dstHubName'],5) . '","radiowe na częstotliwości ogólnodostępnej",,"' . $channels[rand(0,3)] . '","WiFi","13","Nie"' . "\n";
         }
     }
 }
