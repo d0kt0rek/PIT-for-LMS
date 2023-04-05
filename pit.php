@@ -73,6 +73,7 @@ class Customers {
     private $LMS;
     private $teryt;
 
+
     function __construct($LMS, $teryt) {
         $this->LMS = $LMS;
         $this->teryt = $teryt;
@@ -99,7 +100,6 @@ class Customers {
     }
 
     public function getCustomersTeryt() {
-
         foreach ($this->customerList as $customer) {
             $addresses = $this->LMS->getCustomerAddresses($customer['id'], true);
             foreach ($addresses as $addres) {
@@ -120,18 +120,23 @@ class Nodes {
     private $LMS;
     private $DB;
     private $linkMap;
-
+    private $netList;
+    private $reportedAddressPoints;
+    private $invalidNodesCount;
 
     function __construct($LMS, $DB) {
         $this->LMS = $LMS;
         $this->DB = $DB;
         $this->getNodesList();
         $this->linkMap = array();
+        $this->netList = array();
+        $this->reportedAddressPoints = array();
+        $this->invalidNodesCount=0;
     }
 
     private function getNodesList() {
         $search = array(
-            'status' => 0, // zamkniete
+            'status' => -1, // zamkniete
             'type' => -1, //wszystkie
             'invprojectid' => -1, //wszystkie
             'ownership' => -1, //wszystkie
@@ -270,6 +275,287 @@ class Nodes {
         }
     }
 
+    /**
+     * Pobiera identyfikator sieci bazując na przekazanym w argumencie trzecim oktecie
+     **/
+    private function getNetworkIdByThirdOctet($octet)
+    {
+        foreach ($this->netList as $network) {
+            if (!strstr($network['name'], 'EXT')) {
+                $octets = explode('.', $network['address']);
+                if ($octets[2] == $octet) {
+                    return $network['id'];
+                }
+            }
+        }
+        throw new Exception ('Network not Found!');
+    }
+
+    /**
+     * Weryfikuje czy klient nadaje się do raportu do UKE
+     **/
+    private function getCustomerForReportByNodeId($nodeId)
+    {
+        $nodeInfo = $this->LMS->GetNode($nodeId);
+        if ($nodeInfo == false) {
+            throw new Exception('Invalid nodeId!!!');
+        }
+        // nie ma wpisanego ownerId lub nieprawidlowe dane
+        if ((!is_array($nodeInfo)) || (!isset($nodeInfo['ownerid'])) || ($nodeInfo['ownerid'] == NULL)) {
+            if (isset($_GET['debug']) && $_GET['debug'] == 1) {
+                var_dump('Node: ' . $nodeId . ' invalid data or missing ownerid');
+            }
+            $this->invalidNodesCount++;
+            return false;
+        }
+        // wylaczone kommpy ignorujemy
+        if ($nodeInfo['access'] == 0) {
+            if (isset($_GET['debug']) && $_GET['debug'] == 1) {
+                var_dump('Node: ' . $nodeId . ' disabled');
+            }
+            $this->invalidNodesCount++;
+            return false;
+        }
+        $customerInfo = $this->LMS->GetCustomer($nodeInfo['ownerid'], true);
+        // tylko podlaczeni
+        if ($customerInfo['status'] != 3) {
+            if (isset($_GET['debug']) && $_GET['debug'] == 1) {
+                var_dump('Node: ' . $nodeId . ' not connected');
+            }
+            $this->invalidNodesCount++;
+            return false;
+        }
+        // z kadu pocztowego
+        if (!strstr($customerInfo['zip'], $_GET['postal'])) {
+            if (isset($_GET['debug']) && $_GET['debug'] == 1) {
+                var_dump('Node: ' . $nodeId . ' wrong postal code');
+            }
+            return false;
+        }
+        $tariffs = $this->LMS->GetCustomerAssignments($nodeInfo['ownerid']);
+        foreach ($tariffs as $id => $tariff) {
+            if ($tariff['tariffid'] == NULL) {
+                unset($tariffs[$id]);
+                continue;
+            }
+            if (!(($tariff['datefrom'] <= time() || $tariff['datefrom'] == 0) && ($tariff['dateto'] >= time() || $tariff['dateto'] == 0))) {
+                unset($tariffs[$id]);
+                continue;
+            }
+        }
+        if (count($tariffs) == 0) {
+            if (isset($_GET['debug']) && $_GET['debug'] == 1) {
+                var_dump('Node: ' . $nodeId . ' no tariff');
+            }
+            $this->invalidNodesCount++;
+            return false;
+        } else if (count($tariffs) != 1) {
+            throw new Exception('Invalid tariff count');
+        }
+        $customerInfo['tariffs'] = $tariffs;
+        return $customerInfo;
+    }
+
+    private function getTariffReportId($tariffid)
+    {
+        $tariff=$this->LMS->GetTariff($tariffid, null);
+        $maxSpeed = max($tariff['uprate'], $tariff['uprate'], $tariff['downrate'], $tariff['downceil'])/1024;
+        if ($maxSpeed <= 2) {
+            return "01";
+        }
+        if ($maxSpeed <= 10) {
+            return "02";
+        }
+        if ($maxSpeed <= 20) {
+            return "03";
+        }
+        if ($maxSpeed <= 30) {
+            return "04";
+        }
+        if ($maxSpeed <= 40) {
+            return "05";
+        }
+        if ($maxSpeed <= 50) {
+            return "06";
+        }
+        if ($maxSpeed <= 60) {
+            return "07";
+        }
+        if ($maxSpeed <= 70) {
+            return "08";
+        }
+        if ($maxSpeed <= 80) {
+            return "09";
+        }
+        if ($maxSpeed <= 90) {
+            return "10";
+        }
+        if ($maxSpeed <= 100) {
+            return "11";
+        }
+        if ($maxSpeed <= 200) {
+            return "12";
+        }
+        if ($maxSpeed <= 300) {
+            return "13";
+        }
+        if ($maxSpeed <= 400) {
+            return "14";
+        }
+        if ($maxSpeed <= 500) {
+            return "15";
+        }
+        if ($maxSpeed <= 600) {
+            return "16";
+        }
+        if ($maxSpeed <= 700) {
+            return "17";
+        }
+        if ($maxSpeed <= 800) {
+            return "18";
+        }
+        if ($maxSpeed <= 900) {
+            return "19";
+        }
+        if ($maxSpeed <= 1000) {
+            return "20";
+        }
+        if ($maxSpeed <= 2000) {
+            return "21";
+        }
+        if ($maxSpeed <= 3000) {
+            return "22";
+        }
+        if ($maxSpeed <= 4000) {
+            return "23";
+        }
+        if ($maxSpeed <= 5000) {
+            return "24";
+        }
+        if ($maxSpeed <= 6000) {
+            return "25";
+        }
+        if ($maxSpeed <= 7000) {
+            return "26";
+        }
+        if ($maxSpeed <= 8000) {
+            return "27";
+        }
+        if ($maxSpeed <= 9000) {
+            return "28";
+        }
+        if ($maxSpeed <= 10000) {
+            return "29";
+        }
+        throw new Exceptin('Invalid speed');
+    }
+
+    /**
+     * Generuje uslugi swiadczone bazujac na wprowadzonych wezlach (kazdy wezel ma swoj PE)
+     * lub bazujac na urzadzeniach podlaczonych do wezla (kazde urzadzenie ma swoj PE)
+     * do połączenia z punktem wykorzystywane jest parowanie adresacji klient->EP
+     **/
+    public function generateSPCSVFromNodes() {
+        $teryt = new Teryt($this->LMS, $this->DB);
+        $this->netList = $this->LMS->GetNetworkList(array('count' => false));
+        // print header
+        echo '"ua01_id_punktu_adresowego","ua02_id_pe","ua03_id_po","ua04_terc","ua05_simc","ua06_ulic","ua07_nr_porzadkowy","ua08_szerokosc",ua09_dlugosc,ua10_medium_dochodzace_do_pa,ua11_technologia_dostepowa,ua12_instalacja_telekom,ua13_medium_instalacji_budynku,ua14_technologia_dostepowa,"ua15_identyfikacja_uslugi","ua16_dostep_stacjonarny","ua17_dostep_stacjonarny_bezprzewodowy","ua18_telewizja_cyfrowa","ua19_radio","ua20_usluga_telefoniczna","ua21_predkosc_uslugi_td","ua22_liczba_uzytkownikow_uslugi_td"' . "\n";
+        if ($_GET['debug']) {
+            echo "<pre>";
+        }
+        foreach ($this->nodesList as $node)
+        {
+            if (isset($node['name'])) {
+                // bierzemy pod uwage tylko urzadenia posiadajace '[PIT]' w nazwie
+                if (strstr($node['name'],'[PIT]') !== false) {
+                    $nameEP = substr($node['name'], 5);
+		    $hubDevices = $this->getHubDevices($node['id']);
+                    foreach ($hubDevices as $device) {
+                        // sprawdzamy wylacznie urzadzenia dopiete do wezla zawierajace ciag znakow [PIT]AP
+                        if (strstr($device['name'],'[PIT]AP') !== false) {
+                            $arNameParts = explode('_', $device['name']);
+                            $deviceNetworks = array();
+                            foreach ($arNameParts as $namePart) {
+                                if (($namePart == (int)$namePart) && ($namePart > 0)) {
+                                    $deviceNetworks[] = $this->getNetworkIdByThirdOctet($namePart);
+                                }
+                            }
+                            // sieci zidentyfikowane pobierz klientpw danych sieci
+                            foreach ($deviceNetworks as $userNetworkId) {
+                                $userNetwork = $this->LMS->GetNetworkRecord($userNetworkId);
+                                foreach ($userNetwork['nodes']['id'] as $userNodeId) {
+                                    if ($userNodeId != 0) {
+                                        $customer = $this->getCustomerForReportByNodeId($userNodeId);
+                                        if ($customer == false) {
+                                            continue;
+                                        }
+                                        foreach ($customer['addresses'] as $address) {
+                                            if ($address['teryt'] == 1) {
+                                                $location = $teryt->getTerytDataFromAddress($address);
+                                                if ($location['porzadkowy'] == NULL || $location['porzadkowy'] == "") {
+                                                    throw new Exception("Nieprawidlowy numer porzadkowy");
+                                                }
+                                                $tariff = reset($customer['tariffs']);
+                                                $index = $location['terc'] . $location['simc'] . $location['ulic'] . $location['porzadkowy'] . $tariff['tariffid'];
+                                                if (strstr($location['porzadkowy'],'/') !== false) {
+                                                    throw new Exception('Niepawidlowy numer porzadkowy u klienta ' . $customer['id']);
+                                                }
+                                                if (!isset($this->reportedAddressPoints[$index])) {
+                                                    $this->reportedAddressPoints[$index] = array('count' => 1,
+                                                                                               'ep' => $nameEP,
+                                                                                               'terc' => $location['terc'],
+                                                                                               'simc' => $location['simc'],
+                                                                                               'ulic' => $location['ulic'],
+                                                                                               'porzadkowy' => $location['porzadkowy'],
+                                                                                               'tariffid' => $tariff['tariffid']);
+                                                } else {
+                                                    $this->reportedAddressPoints[$index]['count']++;
+                                                }
+                                                if ($_GET['debug'] == 2) {
+                                                    echo $customer['id'] . " index w raporcie: " . $index . "\n";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!isset($_GET['debug']))
+        {
+            // wyswietl pozbierane dane
+            foreach ($this->reportedAddressPoints as $id => $addressPoint) {
+                echo '"' . $id . '",' .
+                     '"' . $addressPoint['ep'] . '",' .
+                     '"",' .
+                     '"' . $addressPoint['terc'] . '",' .
+                     '"' . $addressPoint['simc'] . '",' .
+                     '"' . (($addressPoint['ulic'] == NULL)?'""':$addressPoint['ulic']) . '",' .
+                     '"' . $addressPoint['porzadkowy'] . '",' .
+                     ',' .
+                     ',' .
+                     'radiowe,' .
+                     'WiFi – 802.11a w paśmie 5GHz,' . // uwaga to nie jest zwykly "-"
+                     'W budynku sprawozdawca nie posiada instalacji telekomunikacyjnej budynku,' .
+                     ',' .
+                     ',' .
+                     '"' . $addressPoint['tariffid'] . '",' .
+                     '"Tak",' .
+                     '"Nie",' .
+                     '"Nie",' .
+                     '"Nie",' .
+                     '"Nie",' .
+                     '"' . $this->getTariffReportId($addressPoint['tariffid']) . '",' .
+                     '"' . $addressPoint['count'] . '"' . "\n";
+            }
+        } else {
+            echo 'Invalid nodes count: ' .$this->invalidNodesCount . "\n";
+        }
+    }
+
     private function addSideToLinkMap($hub, $dev, $theOtherDev) {
         $found = false;
         foreach ($this->linkMap as $id => $entry) {
@@ -339,12 +625,12 @@ class Nodes {
 function displayMenu() {
     echo "<html><head><title>PIT-Report</title></head><body>";
     echo "<a href='?m=pit&mode=hubsDivided'>Węzły z rozbiciem na osobne węzeł dla każdego urządzenia składającego się na węzeł [Obsolete]</a><br>";
-    echo "<a href='?m=pit&mode=epDivided'>Punkty elastyczności dla węzłów rozbiciem na osobne węzły dla każdego urządzenia składającego się na węzeł [Obsolete</a><br>";
+    echo "<a href='?m=pit&mode=epDivided'>Punkty elastyczności dla węzłów rozbiciem na osobne węzły dla każdego urządzenia składającego się na węzeł [Obsolete]</a><br>";
     echo "<br><br><br>";
     echo "<a href='?m=pit&mode=hubs'>Węzły bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=ep'>Punkty elastyczności dla węzłów bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
-    echo "<br><br><br>";
     echo "<a href='?m=pit&mode=wl'>Linie bezprzewodowe [Preferwane... Na ten moment]</a><br>";
+    echo "<a href='?m=pit&mode=sp&postal=74-'>Usługi świadczone [Preferwane... Na ten moment]</a> <a href='?m=pit&mode=sp&debug=1&postal=74-'>[DEBUG]</a> <a href='?m=pit&mode=sp&debug=2&postal=74-'>[Dodani klienci]</a><br>";
     echo "</body></html>";
 }
 
@@ -366,6 +652,9 @@ if (!empty($_GET['mode'])) {
             break;
         case 'wl':
             $nodesList->generateWirelessLinesCSV();
+            break;
+        case 'sp':
+            $nodesList->generateSPCSVFromNodes();
             break;
         default:
             displayMenu();
