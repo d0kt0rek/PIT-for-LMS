@@ -620,6 +620,101 @@ class Nodes {
             echo '"LB_' . $link['srcHubId'] . '_' . $link['dstHubId'] . '","WW_' . mb_substr($link['srcHubName'],5) . '","WW_' . mb_substr($link['dstHubName'],5) . '","radiowe na częstotliwości ogólnodostępnej",,"' . $channels[rand(0,3)] . '","WiFi","13","Nie"' . "\n";
         }
     }
+
+    function siduSiis() {
+        echo '"DI","MAGIS MEDIANET Jacek Krzciuk",9595,,8511003966' . "\n";
+        echo '"PO","jkrzciuk","jkrzciuk@gmail.com","+48605823595","www.magis.com.pl"' . "\n";
+        $teryt = new Teryt($this->LMS, $this->DB);
+        $this->netList = $this->LMS->GetNetworkList(array('count' => false));
+        foreach ($this->nodesList as $node)
+        {
+            if (isset($node['name'])) {
+                // bierzemy pod uwage tylko urzadenia posiadajace '[PIT]' w nazwie
+                if (strstr($node['name'],'[PIT]') !== false) {
+                    $nameEP = substr($node['name'], 5);
+                    $hubDevices = $this->getHubDevices($node['id']);
+                    foreach ($hubDevices as $device) {
+                        // sprawdzamy wylacznie urzadzenia dopiete do wezla zawierajace ciag znakow [PIT]AP
+                        if (strstr($device['name'],'[PIT]AP') !== false) {
+                            $arNameParts = explode('_', $device['name']);
+                            $deviceNetworks = array();
+                            foreach ($arNameParts as $namePart) {
+                                if (($namePart == (int)$namePart) && ($namePart > 0)) {
+                                    $deviceNetworks[] = $this->getNetworkIdByThirdOctet($namePart);
+                                }
+                            }
+                            // sieci zidentyfikowane pobierz klientpw danych sieci
+                            foreach ($deviceNetworks as $userNetworkId) {
+                                $userNetwork = $this->LMS->GetNetworkRecord($userNetworkId);
+                                foreach ($userNetwork['nodes']['id'] as $userNodeId) {
+                                    if ($userNodeId != 0) {
+                                        $customer = $this->getCustomerForReportByNodeId($userNodeId);
+                                        if ($customer == false) {
+                                            continue;
+                                        }
+                                        foreach ($customer['addresses'] as $address) {
+                                            if ($address['teryt'] == 1) {
+                                                $location = $teryt->getTerytDataFromAddress($address);
+
+                                                if ($location['porzadkowy'] == NULL || $location['porzadkowy'] == "") {
+                                                    throw new Exception("Nieprawidlowy numer porzadkowy");
+                                                }
+                                                $index = $location['terc'] . $location['simc'] . $location['ulic'] . $location['porzadkowy'];
+                                                if (strstr($location['porzadkowy'],'/') !== false) {
+                                                    throw new Exception('Niepawidlowy numer porzadkowy u klienta ' . $customer['id']);
+                                                }
+                                                if (!isset($this->reportedAddressPoints[$index])) {
+                                                    $this->reportedAddressPoints[$index] = array('count' => 1,
+                                                                                               'ep' => $nameEP,
+                                                                                               'terc' => $location['terc'],
+                                                                                               'city' => $address['location_city_name'],
+                                                                                               'simc' => $location['simc'],
+                                                                                               'ulic' => $location['ulic'],
+                                                                                               'street' => $address['location_street_name'],
+                                                                                               'porzadkowy' => $location['porzadkowy']);
+                                                } else {
+                                                    $this->reportedAddressPoints[$index]['count']++;
+                                                }
+                                                if ($_GET['debug'] == 2) {
+                                                    echo $customer['id'] . " index w raporcie: " . $index . "\n";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!isset($_GET['debug']))
+        {
+            // wyswietl pozbierane dane
+            foreach ($this->reportedAddressPoints as $id => $addressPoint) {
+                echo '"ZS",' .
+                     '"' . $id . '",' .
+                     '"' . $addressPoint['terc'] . '",' .
+                     '"' . $addressPoint['city'] . '",' .
+                     '"' . $addressPoint['simc'] . '",' .
+                     '"' . (($addressPoint['street'] == NULL)?'':$addressPoint['street']) . '",' .
+                     '"' . (($addressPoint['ulic'] == NULL)?'':$addressPoint['ulic']) . '",' .
+                     '"' . $addressPoint['porzadkowy'] . '",' .
+                     ',' .
+                     ',' .
+                     '"radiowe (FWA)",' .
+                     'Inna,' . // uwaga to nie jest zwykly "-"
+                     '50,' .
+                     '50,' .
+                     'rzeczywisty,' .
+                     '"Nie",' .
+                     '"Tak",' .
+                     '"jkrzciuk"' . "\n" ;
+            }
+        } else {
+            echo 'Invalid nodes count: ' .$this->invalidNodesCount . "\n";
+        }
+    }
 }
 
 function displayMenu() {
@@ -631,6 +726,8 @@ function displayMenu() {
     echo "<a href='?m=pit&mode=ep'>Punkty elastyczności dla węzłów bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=wl'>Linie bezprzewodowe [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=sp&postal=74-'>Usługi świadczone [Preferwane... Na ten moment]</a> <a href='?m=pit&mode=sp&debug=1&postal=74-'>[DEBUG]</a> <a href='?m=pit&mode=sp&debug=2&postal=74-'>[Dodani klienci]</a><br>";
+    echo "<br><br><br>";
+    echo "<a href='?m=pit&mode=sidusiis&postal=74-'>SiduSiiS [Preferwane... Na ten moment]</a><br>";
     echo "</body></html>";
 }
 
@@ -655,6 +752,9 @@ if (!empty($_GET['mode'])) {
             break;
         case 'sp':
             $nodesList->generateSPCSVFromNodes();
+            break;
+        case 'sidusiis':
+            $nodesList->siduSiis();
             break;
         default:
             displayMenu();
