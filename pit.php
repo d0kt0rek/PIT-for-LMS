@@ -180,8 +180,8 @@ class Nodes {
                 if ($splitDevicesToMultipleHubs == true) {
                     $netdevlist = $this->getHubDevices($node['id']);
                     foreach ($netdevlist as $netdev) {
-                        echo 'WW_' . $name. '_' . $netdev['id'] .
-                             ',Węzeł własny,' .
+                        echo '"WW_' . $name. '_' . $netdev['id'] . '"' .
+                             ',"Węzeł własny",' .
                              ',' .
                              $node['terc'] . ',' .
                              $node['simc'] . ',' .
@@ -189,19 +189,20 @@ class Nodes {
                              $node['location_house'] . ',' .
                              $node['latitude'] . ',' .
                              $node['longitude'] . ',' .
-                             'radiowe,' .
-                             'Nie,' .
-                             'WiFi – 802.11a w paśmie 5GHz,' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
+                             '"radiowe",' .
+                             '"Nie",' .
+                             '"WiFi - 802.11a w paśmie 5GHz",' . //UWAGA TO JUZ JEST ZWYKLY "-"
+//                             '"WiFi – 802.11a w paśmie 5GHz",' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
                              ',' .
-                             'Nie,' .
-                             'Nie,' .
+                             '"Nie",' .
+                             '"Nie",' .
                              ',' .
-                             'Nie,' .
+                             '"Nie",' .
                              ",\n" ;
                     }
                 } else {
-                    echo 'WW_' . $name .
-                         ',Węzeł własny,' .
+                    echo '"WW_' . $name . '"' .
+                         ',"Węzeł własny",' .
                          ',' .
                          $node['terc'] . ',' .
                          $node['simc'] . ',' .
@@ -209,14 +210,15 @@ class Nodes {
                          $node['location_house'] . ',' .
                          $node['latitude'] . ',' .
                          $node['longitude'] . ',' .
-                         'radiowe,' .
-                         'Nie,' .
-                         'WiFi – 802.11a w paśmie 5GHz,' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
+                         '"radiowe",' .
+                         '"Nie",' .
+                         '"WiFi - 802.11a w paśmie 5GHz",' . //UWAGA TO JUZ JEST ZWYKLY "-"
+//                         '"WiFi – 802.11a w paśmie 5GHz",' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
                          ',' .
-                         'Nie,' .
-                         'Nie,' .
+                         '"Nie",' .
+                         '"Nie",' .
                          ',' .
-                         'Nie,' .
+                         '"Nie",' .
                          ",\n" ;
                 }
             }
@@ -238,38 +240,40 @@ class Nodes {
                 if ($splitDevicesToMultipleHubs == true) {
                     $netdevlist = $this->getHubDevices($node['id']);
                     foreach ($netdevlist as $netdev) {
-                        echo 'PE_' . $name. '_' . $netdev['id'] . ',' .
+                        echo '"PE_' . $name. '_' . $netdev['id'] . '",' .
                              '11,' . //maszt telekomunikacyjny
-                             'WW_' . $name . '_' . $netdev['id'] . ',' .
-                             'Tak,' .
+                             '"WW_' . $name . '_' . $netdev['id'] . '",' .
+                             '"Tak",' .
                              $node['terc'] . ',' .
                              $node['simc'] . ',' .
                              $node['ulic'] . ',' .
                              $node['location_house'] . ',' .
                              $node['latitude'] . ',' .
                              $node['longitude'] . ',' .
-                             'radiowe,' .
-                             'WiFi – 802.11a w paśmie 5GHz,' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
+                             '"radiowe",' .
+                             '"WiFi - 802.11a w paśmie 5GHz",' . //UWAGA TO JUZ JEST ZWYKLY "-"
+//                             '"WiFi – 802.11a w paśmie 5GHz",' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
                              '09,' . //usluga swiadczona dla uzytkownikow koncowych
-                             'Nie,' .
-                             'Nie,' . "\n";
+                             '"Nie",' .
+                             '"Nie",' . "\n";
                     }
                 } else {
-                    echo 'PE_' . $name . ',' .
+                    echo '"PE_' . $name . '",' .
                          '11,' . //maszt telekomunikacyjny
-                         'WW_' . $name . ',' .
-                         'Tak,' .
+                         '"WW_' . $name . '",' .
+                         '"Tak",' .
                          $node['terc'] . ',' .
                          $node['simc'] . ',' .
                          $node['ulic'] . ',' .
                          $node['location_house'] . ',' .
                          $node['latitude'] . ',' .
                          $node['longitude'] . ',' .
-                         'radiowe,' .
-                         'WiFi – 802.11a w paśmie 5GHz,' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
+                         '"radiowe",' .
+                         '"WiFi - 802.11a w paśmie 5GHz",' . //UWAGA TO JUZ JEST ZWYKLY "-"
+//                         '"WiFi – 802.11a w paśmie 5GHz",' . //UWAGA TO NIE JEST ZWYKLY "-", w przypadku edycji na inne pola, nie kasowac tego znaku
                          '09,' . //usluga swiadczona dla uzytkownikow koncwych
-                         'Nie,' .
-                         'Nie,' . "\n";
+                         '"Nie",' .
+                         '"Nie",' . "\n";
                 }
             }
         }
@@ -526,23 +530,46 @@ class Nodes {
         }
         if (!isset($_GET['debug']))
         {
+            //jesli istnieje plik pomocniczy, pobierz wspolrzedne dla poszczegolnych punktow
+            if (file_exists(dirname(__FILE__) . '/googleResp.sqlite')) {
+                $pdo = new PDO("sqlite:" . dirname(__FILE__) . '/googleResp.sqlite');
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            } else {
+                $pdo = false;
+            }
+
             // wyswietl pozbierane dane
             foreach ($this->reportedAddressPoints as $id => $addressPoint) {
+                $lng = false;
+                $lat = false;
+                if ($pdo) {
+                    $ap_id = substr($addressPoint['terc'], strlen('32100')) . $addressPoint['simc'] . $addressPoint['ulic'] . $addressPoint['porzadkowy'];
+                    $ap_id = preg_replace('/[^0-9]/', '', $ap_id);
+
+                    $q = "select lng, lat from gmap_geometry where address_id=" . $ap_id;
+                    $res=$pdo->query($q);
+                    $qRes = $res->fetch(PDO::FETCH_OBJ);
+                    if ($qRes!= false) {
+                        $lng = $qRes->lng;
+                        $lat = $qRes->lat;
+                    }
+                }
+
                 echo '"' . $id . '",' .
-                     '"' . $addressPoint['ep'] . '",' .
+                     '"PE_' . $addressPoint['ep'] . '",' .
                      '"",' .
                      '"' . $addressPoint['terc'] . '",' .
                      '"' . $addressPoint['simc'] . '",' .
-                     '"' . (($addressPoint['ulic'] == NULL)?'""':$addressPoint['ulic']) . '",' .
+                     '' . (($addressPoint['ulic'] == NULL)?'""':$addressPoint['ulic']) . ',' .
                      '"' . $addressPoint['porzadkowy'] . '",' .
+                     $lat . ',' .
+                     $lng . ',' .
+                     '"radiowe",' .
+                     '"WiFi - 802.11a w paśmie 5GHz",' . // uwaga to nie jest zwykly "-"
+                     '"W budynku sprawozdawca nie posiada instalacji telekomunikacyjnej budynku",' .
                      ',' .
                      ',' .
-                     'radiowe,' .
-                     'WiFi – 802.11a w paśmie 5GHz,' . // uwaga to nie jest zwykly "-"
-                     'W budynku sprawozdawca nie posiada instalacji telekomunikacyjnej budynku,' .
-                     ',' .
-                     ',' .
-                     '"' . $addressPoint['tariffid'] . '",' .
+                     '"' . $id . $addressPoint['tariffid'] . '",' .
                      '"Tak",' .
                      '"Nie",' .
                      '"Nie",' .
@@ -553,6 +580,100 @@ class Nodes {
             }
         } else {
             echo 'Invalid nodes count: ' .$this->invalidNodesCount . "\n";
+        }
+    }
+
+    /**
+     * Generuje uslugi swiadczone bazujac na wprowadzonych wezlach (kazdy wezel ma swoj PE)
+     * lub bazujac na urzadzeniach podlaczonych do wezla (kazde urzadzenie ma swoj PE)
+     * do połączenia z punktem wykorzystywane jest parowanie adresacji klient->EP
+     **/
+    public function generateGeocodeREQFromNodes() {
+        $teryt = new Teryt($this->LMS, $this->DB);
+        $this->netList = $this->LMS->GetNetworkList(array('count' => false));
+        // print header
+        echo 'id_adresu,ua04_terc,ua05_simc,ua06_ulic,ua07_nr_porzadkowy,b64_zip,b64_city,b64_street,b64_address' . "\n";
+        foreach ($this->nodesList as $node)
+        {
+            if (isset($node['name'])) {
+                // bierzemy pod uwage tylko urzadenia posiadajace '[PIT]' w nazwie
+                if (strstr($node['name'],'[PIT]') !== false) {
+                    $nameEP = substr($node['name'], 5);
+		    $hubDevices = $this->getHubDevices($node['id']);
+                    foreach ($hubDevices as $device) {
+                        // sprawdzamy wylacznie urzadzenia dopiete do wezla zawierajace ciag znakow [PIT]AP
+                        if (strstr($device['name'],'[PIT]AP') !== false) {
+                            $arNameParts = explode('_', $device['name']);
+                            $deviceNetworks = array();
+                            foreach ($arNameParts as $namePart) {
+                                if (($namePart == (int)$namePart) && ($namePart > 0)) {
+                                    $deviceNetworks[] = $this->getNetworkIdByThirdOctet($namePart);
+                                }
+                            }
+                            // sieci zidentyfikowane pobierz klientpw danych sieci
+                            foreach ($deviceNetworks as $userNetworkId) {
+                                $userNetwork = $this->LMS->GetNetworkRecord($userNetworkId);
+                                foreach ($userNetwork['nodes']['id'] as $userNodeId) {
+                                    if ($userNodeId != 0) {
+                                        $customer = $this->getCustomerForReportByNodeId($userNodeId);
+                                        if ($customer == false) {
+                                            continue;
+                                        }
+                                        foreach ($customer['addresses'] as $address) {
+                                            if ($address['teryt'] == 1) {
+                                                $location = $teryt->getTerytDataFromAddress($address);
+                                                if ($location['porzadkowy'] == NULL || $location['porzadkowy'] == "") {
+                                                    throw new Exception("Nieprawidlowy numer porzadkowy");
+                                                }
+                                                $tariff = reset($customer['tariffs']);
+                                                $index = $location['terc'] . $location['simc'] . $location['ulic'] . $location['porzadkowy'] . $tariff['tariffid'];
+                                                if (strstr($location['porzadkowy'],'/') !== false) {
+                                                    throw new Exception('Niepawidlowy numer porzadkowy u klienta ' . $customer['id']);
+                                                }
+                                                if (!isset($this->reportedAddressPoints[$index])) {
+                                                    $this->reportedAddressPoints[$index] = array('count' => 1,
+                                                                                               'ep' => $nameEP,
+                                                                                               'terc' => $location['terc'],
+                                                                                               'simc' => $location['simc'],
+                                                                                               'ulic' => $location['ulic'],
+                                                                                               'zip' => $customer['zip'],
+                                                                                               'city' => $customer['city'],
+                                                                                               'street' => $location['street'],
+                                                                                               'ap_id' => $location['terc'] . $location['simc'] . $location['ulic'] . $location['porzadkowy'],
+                                                                                               'full_address' => $customer['full_address'],
+                                                                                               'porzadkowy' => $location['porzadkowy'],
+                                                                                               'tariffid' => $tariff['tariffid']);
+                                                } else {
+                                                    $this->reportedAddressPoints[$index]['count']++;
+                                                }
+                                                if ($_GET['debug'] == 2) {
+                                                    echo $customer['id'] . " index w raporcie: " . $index . "\n";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!isset($_GET['debug']))
+        {
+            // wyswietl pozbierane dane
+            foreach ($this->reportedAddressPoints as $id => $addressPoint) {
+                echo $addressPoint['ap_id'] . ',' .
+                     $addressPoint['terc'] . ',' .
+                     $addressPoint['simc'] . ',' .
+                     (($addressPoint['ulic'] == NULL)?'':$addressPoint['ulic']) . ',' .
+                     $addressPoint['porzadkowy'] . ',' .
+                     base64_encode($addressPoint['zip']) .',' .
+                     base64_encode($addressPoint['city']) .',' .
+                     base64_encode($addressPoint['street']) . ',' .
+                     base64_encode($addressPoint['full_address']) .
+                     "\n";
+            }
         }
     }
 
@@ -661,6 +782,7 @@ class Nodes {
                                                 }
                                                 $index = $location['terc'] . $location['simc'] . $location['ulic'] . $location['porzadkowy'];
                                                 if (strstr($location['porzadkowy'],'/') !== false) {
+						    print_r($location);
                                                     throw new Exception('Niepawidlowy numer porzadkowy u klienta ' . $customer['id']);
                                                 }
                                                 if (!isset($this->reportedAddressPoints[$index])) {
@@ -709,6 +831,8 @@ class Nodes {
                      'rzeczywisty,' .
                      '"Nie",' .
                      '"Tak",' .
+                     '"Tak",' .
+                     ',' .
                      '"jkrzciuk"' . "\n" ;
             }
         } else {
@@ -726,6 +850,7 @@ function displayMenu() {
     echo "<a href='?m=pit&mode=ep'>Punkty elastyczności dla węzłów bez rozbicia na zawarte w nich urządzenia [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=wl'>Linie bezprzewodowe [Preferwane... Na ten moment]</a><br>";
     echo "<a href='?m=pit&mode=sp&postal=74-'>Usługi świadczone [Preferwane... Na ten moment]</a> <a href='?m=pit&mode=sp&debug=1&postal=74-'>[DEBUG]</a> <a href='?m=pit&mode=sp&debug=2&postal=74-'>[Dodani klienci]</a><br>";
+    echo "<a href='?m=pit&mode=gc&postal=74-'>Geokodowanie</a> <br>";
     echo "<br><br><br>";
     echo "<a href='?m=pit&mode=sidusiis&postal=74-'>SiduSiiS [Preferwane... Na ten moment]</a><br>";
     echo "</body></html>";
@@ -752,6 +877,9 @@ if (!empty($_GET['mode'])) {
             break;
         case 'sp':
             $nodesList->generateSPCSVFromNodes();
+            break;
+        case 'gc':
+            $nodesList->generateGeocodeREQFromNodes();
             break;
         case 'sidusiis':
             $nodesList->siduSiis();
